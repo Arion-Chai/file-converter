@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -21,13 +22,37 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
+  body.bw{
+    --bg:#050505;--panel:#0d0d0d;--panel2:#161616;--line:#2e2e2e;
+    --text:#f2f2f2;--muted:#9c9c9c;--accent:#e8e8e8;
+    --accent-dim:rgba(255,255,255,.08);--ok:#c8c8c8;--warn:#d5d5d5;--err:#e0e0e0;
+  }
   body{
     background:var(--bg);color:var(--text);
     font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
     line-height:1.6;min-height:100vh;
   }
+  .layout{display:flex;min-height:100vh}
+  .main{flex:1;min-width:0}
   .mono{font-family:ui-monospace,Consolas,"Courier New",monospace}
   .wrap{max-width:920px;margin:0 auto;padding:24px 20px 64px}
+  /* sidebar */
+  .side{
+    width:232px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);
+    padding:18px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+  .side-title{font-size:15px;font-weight:650;margin-bottom:18px;color:var(--accent)}
+  .side-group{margin-bottom:18px}
+  .side-label{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .side-opts{display:flex;flex-direction:column;gap:6px}
+  .side-btn{
+    border:1px solid var(--line);background:var(--panel2);color:var(--text);
+    border-radius:6px;padding:8px 10px;font-size:13px;cursor:pointer;text-align:left;
+    transition:border-color .12s,background .12s,color .12s;
+  }
+  .side-btn:hover{border-color:var(--accent)}
+  .side-btn.sel{border-color:var(--accent);background:var(--accent-dim);color:var(--accent);font-weight:600}
+  html[dir=rtl] .side-btn{text-align:right}
   header{
     display:flex;align-items:baseline;gap:14px;padding:8px 0 20px;
     border-bottom:1px solid var(--line);margin-bottom:22px;
@@ -94,6 +119,14 @@
   #toast.ok{border-color:var(--ok);color:var(--ok)}
   #toast.err{border-color:var(--err);color:var(--err)}
   #toast.warn{border-color:var(--warn);color:var(--warn)}
+  @media(max-width:760px){
+    .layout{flex-direction:column}
+    .side{width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 14px}
+    .side-title{margin:0}
+    .side-group{margin:0;display:flex;align-items:center;gap:8px}
+    .side-opts{flex-direction:row;flex-wrap:wrap}
+    .side-btn{padding:6px 10px}
+  }
   @media(max-width:560px){
     header{flex-direction:column;gap:2px}
     .grid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr))}
@@ -102,47 +135,104 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="layout">
+  <aside class="side">
+    <div class="side-title" data-i18n="title">文件转换器</div>
+    <div class="side-group">
+      <div class="side-label" data-i18n="lang">语言</div>
+      <div class="side-opts" id="langOpts">
+        <button class="side-btn" data-lang="zh">中文</button>
+        <button class="side-btn" data-lang="en">English</button>
+        <button class="side-btn" data-lang="fr">Français</button>
+        <button class="side-btn" data-lang="ru">Русский</button>
+        <button class="side-btn" data-lang="es">Español</button>
+        <button class="side-btn" data-lang="ar">العربية</button>
+      </div>
+    </div>
+    <div class="side-group">
+      <div class="side-label" data-i18n="tone">色调</div>
+      <div class="side-opts" id="toneOpts">
+        <button class="side-btn" data-tone="color" data-i18n="color">彩色</button>
+        <button class="side-btn" data-tone="bw" data-i18n="bw">黑白</button>
+      </div>
+    </div>
+  </aside>
+  <main class="main">
+  <div class="wrap">
   <header>
-    <h1>文件<b>转换器</b></h1>
-    <span>纯本地 · 按格式转换规则运行</span>
+    <h1 data-i18n="title">文件转换器</h1>
+    <span data-i18n="subtitle">纯本地 · 按格式转换规则运行</span>
   </header>
 
   <!-- ===== 上传 ===== -->
   <section class="card">
-    <h2>① 上传文件</h2>
+    <h2 data-i18n="up">① 上传文件</h2>
     <div class="drop" id="drop">
-      <div class="big">点击或拖拽文件到此处</div>
-      <div class="small">支持 .txt .docx .jpg .png .mp4 .zip 等 112 种格式</div>
+      <div class="big" data-i18n="dropBig">点击或拖拽文件到此处</div>
+      <div class="small" data-i18n="dropSmall">支持 .txt .docx .jpg .png .mp4 .zip 等 112 种格式</div>
       <input type="file" id="fileInput">
     </div>
   </section>
 
   <!-- ===== 源信息 + 目标选择 ===== -->
   <section class="card" id="targetCard" style="display:none">
-    <h2>② 源文件与目标格式</h2>
+    <h2 data-i18n="srcSec">② 源文件与目标格式</h2>
     <div class="info" id="fileInfo"></div>
     <div style="margin-top:14px" class="groups" id="groups"></div>
   </section>
 
   <!-- ===== 转换方式 + 参数 + 执行 ===== -->
   <section class="card" id="actCard" style="display:none">
-    <h2>③ 转换方式与执行</h2>
+    <h2 data-i18n="actSec">③ 转换方式与执行</h2>
     <div class="method" id="method"></div>
     <div class="params" id="params"></div>
     <div class="actions">
-      <button class="btn" id="convertBtn">转换并下载</button>
+      <button class="btn" id="convertBtn" data-i18n="convert">转换并下载</button>
       <span class="dl" id="dlMsg"></span>
     </div>
     <div class="note" id="note"></div>
   </section>
+  </div>
+  </main>
 </div>
 
 <div id="toast"></div>
 
 <script>
 /* ===== DATA（内置，与转换方式表一致） ===== */
-const CAT_NAMES = {doc:'文档', img:'图像', aud:'音频', vid:'视频', arc:'压缩/镜像', sys:'系统/可执行', dat:'数据/字体', code:'编程', '3d':'3D'};
+const CATS=['doc','img','aud','vid','arc','sys','dat','code','3d'];
+const RAW_NO='无法转换';
+const I18N = {
+  zh:{title:'文件转换器',subtitle:'纯本地 · 按格式转换规则运行',up:'① 上传文件',dropBig:'点击或拖拽文件到此处',dropSmall:'支持 .txt .docx .jpg .png .mp4 .zip 等 112 种格式',srcSec:'② 源文件与目标格式',actSec:'③ 转换方式与执行',convert:'转换并下载',lang:'语言',tone:'色调',color:'彩色',bw:'黑白',fname:'文件名',fmt:'源格式',ftype:'源类型',size:'大小',same:'[同类]',note:'提示：此转换为纯前端无法实时完成，需在服务端或本机程序处理。',converting:'转换中…',donePrefix:'已完成：',toastOk:'转换完成，已开始下载',toastFail:'转换失败',readFail:'读取文件失败',imgFail:'图片处理失败：',imgExportFail:'该图片格式无法导出为 ',imgReadFail:'无法读取源图片（可能格式不支持）',widthPx:'宽度 px（留空=原尺寸，高度等比）',grayL:'灰度 0–100%',brightL:'亮度 ×0.5–×2',methodDirect:'直接转换',methodNo:'无法转换',methodProg:'转换为相同效果的程序',unsupFront:'纯前端无法实时转换，需服务端/本机程序处理',errUnsup:'不支持该格式：',cat_doc:'文档',cat_img:'图像',cat_aud:'音频',cat_vid:'视频',cat_arc:'压缩/镜像',cat_sys:'系统/可执行',cat_dat:'数据/字体',cat_code:'编程',cat_3d:'3D'},
+  en:{title:'File Converter',subtitle:'100% local · converts by format rules',up:'① Upload File',dropBig:'Click or drag a file here',dropSmall:'Supports .txt .docx .jpg .png .mp4 .zip and 112 formats',srcSec:'② Source & Target Format',actSec:'③ Method & Run',convert:'Convert & Download',lang:'Language',tone:'Theme',color:'Color',bw:'Monochrome',fname:'File name',fmt:'Source format',ftype:'Type',size:'Size',same:'[Same type]',note:'Note: this cannot run in real time in pure front-end; it needs a server or local program.',converting:'Converting…',donePrefix:'Done: ',toastOk:'Converted, download started',toastFail:'Conversion failed',readFail:'Failed to read file',imgFail:'Image processing failed: ',imgExportFail:'Cannot export this image format to ',imgReadFail:'Cannot read source image (format may be unsupported)',widthPx:'Width px (blank = original, height scales)',grayL:'Grayscale 0–100%',brightL:'Brightness ×0.5–×2',methodDirect:'Direct conversion',methodNo:'Cannot convert',methodProg:'Convert to an equivalent program',unsupFront:'cannot run in real time in pure front-end; needs a server or local program',errUnsup:'Unsupported format: ',cat_doc:'Document',cat_img:'Image',cat_aud:'Audio',cat_vid:'Video',cat_arc:'Archive/Image',cat_sys:'System/Executable',cat_dat:'Data/Font',cat_code:'Programming',cat_3d:'3D'},
+  fr:{title:'Convertisseur de fichiers',subtitle:'100% local · conversion selon les règles',up:'① Téléverser un fichier',dropBig:'Cliquez ou glissez un fichier ici',dropSmall:'Prend en charge .txt .docx .jpg .png .mp4 .zip et 112 formats',srcSec:'② Fichier source et format cible',actSec:'③ Méthode et exécution',convert:'Convertir et télécharger',lang:'Langue',tone:'Thème',color:'Couleur',bw:'Noir et blanc',fname:'Nom du fichier',fmt:'Format source',ftype:'Type',size:'Taille',same:'[Même type]',note:'Remarque : impossible en temps réel en front-end pur ; nécessite un serveur ou un programme local.',converting:'Conversion…',donePrefix:'Terminé : ',toastOk:'Conversion terminée, téléchargement lancé',toastFail:'Échec de la conversion',readFail:'Échec de lecture du fichier',imgFail:'Échec du traitement : ',imgExportFail:'Impossible d’exporter ce format vers ',imgReadFail:'Image source illisible (format peut-être non pris en charge)',widthPx:'Largeur px (vide = originale, hauteur proportionnelle)',grayL:'Niveaux de gris 0–100%',brightL:'Luminosité ×0.5–×2',methodDirect:'Conversion directe',methodNo:'Conversion impossible',methodProg:'Convertir en programme équivalent',unsupFront:'impossible en temps réel en front-end pur ; nécessite un serveur ou un programme local',errUnsup:'Format non pris en charge : ',cat_doc:'Document',cat_img:'Image',cat_aud:'Audio',cat_vid:'Vidéo',cat_arc:'Archive/Image',cat_sys:'Système/Exécutable',cat_dat:'Données/Police',cat_code:'Programmation',cat_3d:'3D'},
+  ru:{title:'Конвертер файлов',subtitle:'100% локально · конвертация по правилам',up:'① Загрузить файл',dropBig:'Нажмите или перетащите файл сюда',dropSmall:'Поддерживает .txt .docx .jpg .png .mp4 .zip и 112 форматов',srcSec:'② Исходный и целевой формат',actSec:'③ Способ и запуск',convert:'Конвертировать и скачать',lang:'Язык',tone:'Тема',color:'Цвет',bw:'Чёрно-белый',fname:'Имя файла',fmt:'Исходный формат',ftype:'Тип',size:'Размер',same:'[Тот же тип]',note:'Примечание: невозможно в реальном времени в чистом фронтенде; требуется сервер или локальная программа.',converting:'Конвертация…',donePrefix:'Готово: ',toastOk:'Конвертация завершена, загрузка началась',toastFail:'Сбой конвертации',readFail:'Не удалось прочитать файл',imgFail:'Ошибка обработки: ',imgExportFail:'Невозможно экспортировать этот формат в ',imgReadFail:'Не удалось прочитать исходное изображение (формат может не поддерживаться)',widthPx:'Ширина px (пусто = оригинал, высота пропорциональна)',grayL:'Оттенки серого 0–100%',brightL:'Яркость ×0.5–×2',methodDirect:'Прямая конвертация',methodNo:'Конвертация невозможна',methodProg:'Конвертировать в эквивалентную программу',unsupFront:'невозможно в реальном времени в чистом фронтенде; требуется сервер или локальная программа',errUnsup:'Неподдерживаемый формат: ',cat_doc:'Документ',cat_img:'Изображение',cat_aud:'Аудио',cat_vid:'Видео',cat_arc:'Архив/Образ',cat_sys:'Система/Исполняемый',cat_dat:'Данные/Шрифт',cat_code:'Программирование',cat_3d:'3D'},
+  es:{title:'Convertidor de archivos',subtitle:'100% local · convierte según reglas',up:'① Subir archivo',dropBig:'Haz clic o arrastra un archivo aquí',dropSmall:'Admite .txt .docx .jpg .png .mp4 .zip y 112 formatos',srcSec:'② Formato de origen y destino',actSec:'③ Método y ejecución',convert:'Convertir y descargar',lang:'Idioma',tone:'Tema',color:'Color',bw:'Blanco y negro',fname:'Nombre del archivo',fmt:'Formato de origen',ftype:'Tipo',size:'Tamaño',same:'[Mismo tipo]',note:'Nota: imposible en tiempo real solo con front-end; requiere un servidor o un programa local.',converting:'Convirtiendo…',donePrefix:'Listo: ',toastOk:'Conversión completada, descarga iniciada',toastFail:'Error de conversión',readFail:'No se pudo leer el archivo',imgFail:'Error al procesar: ',imgExportFail:'No se puede exportar este formato a ',imgReadFail:'No se pudo leer la imagen de origen (el formato puede no ser compatible)',widthPx:'Ancho px (vacío = original, altura proporcional)',grayL:'Escala de grises 0–100%',brightL:'Brillo ×0.5–×2',methodDirect:'Conversión directa',methodNo:'Conversión imposible',methodProg:'Convertir en programa equivalente',unsupFront:'imposible en tiempo real solo con front-end; requiere un servidor o un programa local',errUnsup:'Formato no compatible: ',cat_doc:'Documento',cat_img:'Imagen',cat_aud:'Audio',cat_vid:'Vídeo',cat_arc:'Archivo/Imagen',cat_sys:'Sistema/Ejecutable',cat_dat:'Datos/Fuente',cat_code:'Programación',cat_3d:'3D'},
+  ar:{title:'محول الملفات',subtitle:'محلي 100% · تحويل وفق قواعد الصيغ',up:'① رفع ملف',dropBig:'انقر أو اسحب ملفًا هنا',dropSmall:'يدعم .txt .docx .jpg .png .mp4 .zip و112 صيغة',srcSec:'② صيغة المصدر والهدف',actSec:'③ طريقة التحويل والتنفيذ',convert:'تحويل وتنزيل',lang:'اللغة',tone:'المظهر',color:'ملوّن',bw:'أبيض وأسود',fname:'اسم الملف',fmt:'صيغة المصدر',ftype:'النوع',size:'الحجم',same:'[نفس النوع]',note:'ملاحظة: لا يمكن إجراء هذا التحويل في الوقت الفعلي بواجهة أمامية فقط؛ يتطلب خادمًا أو برنامجًا محليًا.',converting:'جارٍ التحويل…',donePrefix:'تم: ',toastOk:'اكتمل التحويل، بدأ التنزيل',toastFail:'فشل التحويل',readFail:'تعذّر قراءة الملف',imgFail:'فشل معالجة الصورة: ',imgExportFail:'لا يمكن تصدير صيغة الصورة هذه إلى ',imgReadFail:'تعذّر قراءة الصورة المصدر (قد لا تكون الصيغة مدعومة)',widthPx:'العرض px (فارغ = أصلي، الارتفاع نسبي)',grayL:'تدرج رمادي 0–100%',brightL:'السطوع ×0.5–×2',methodDirect:'تحويل مباشر',methodNo:'لا يمكن التحويل',methodProg:'تحويل إلى برنامج مكافئ',unsupFront:'لا يمكن إجراؤه في الوقت الفعلي بواجهة أمامية فقط؛ يتطلب خادمًا أو برنامجًا محليًا',errUnsup:'صيغة غير مدعومة: ',cat_doc:'مستند',cat_img:'صورة',cat_aud:'صوت',cat_vid:'فيديو',cat_arc:'مضغوط/صورة',cat_sys:'نظام/تنفيذي',cat_dat:'بيانات/خط',cat_code:'برمجة',cat_3d:'3D'}
+};
+let LANG = localStorage.getItem('conv_lang')||'zh';
+let TONE = localStorage.getItem('conv_tone')||'color';
+const t = k => (I18N[LANG]&&I18N[LANG][k]!==undefined)?I18N[LANG][k]:(I18N.zh[k]||k);
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.documentElement.dir = (LANG==='ar')?'rtl':'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('#langOpts .side-btn').forEach(b=>b.classList.toggle('sel', b.dataset.lang===LANG));
+  if(state.srcExt){
+    renderSource(); renderGroups();
+    if(state.target){
+      $('method').textContent = state.target.m + '（'+state.srcExt+' → '+state.target.e+'）';
+      $('note').textContent = canReal(state.target)?'':t('note');
+      renderParams();
+    }
+  }
+}
+function applyTone(){
+  document.body.classList.toggle('bw', TONE==='bw');
+  document.querySelectorAll('#toneOpts .side-btn').forEach(b=>b.classList.toggle('sel', b.dataset.tone===TONE));
+}
+document.querySelectorAll('#langOpts .side-btn').forEach(b=>b.addEventListener('click',()=>{ LANG=b.dataset.lang; localStorage.setItem('conv_lang',LANG); applyLang(); }));
+document.querySelectorAll('#toneOpts .side-btn').forEach(b=>b.addEventListener('click',()=>{ TONE=b.dataset.tone; localStorage.setItem('conv_tone',TONE); applyTone(); }));
 
 const FMT = {
   '.txt':'doc','.rtf':'doc','.doc':'doc','.docx':'doc','.xls':'doc','.xlsx':'doc','.ppt':'doc','.pptx':'doc','.pdf':'doc','.odt':'doc','.ods':'doc','.odp':'doc',
@@ -191,9 +281,10 @@ function baseName(name){ return name.replace(/\.[^.]+$/,''); }
 /* ===== 转换方式 ===== */
 function methodOf(src, dst){
   const ca=FMT[src], cb=FMT[dst];
-  if(PROG.has(src) && PROG.has(dst)) return '转换为相同效果的程序';
-  if(ca===cb) return '直接转换';
-  return (CROSS[ca] && CROSS[ca][cb]) || '无法转换';
+  if(PROG.has(src) && PROG.has(dst)) return t('methodProg');
+  if(ca===cb) return t('methodDirect');
+  const raw=(CROSS[ca]&&CROSS[ca][cb])||RAW_NO;
+  return raw===RAW_NO ? t('methodNo') : raw;
 }
 
 /* ===== 上传 ===== */
@@ -208,7 +299,7 @@ function handleFile(file){
   const m = file.name.match(/\.([^.]+)$/);
   const ext = m ? ('.'+m[1].toLowerCase()) : '';
   if(!FMT[ext]){
-    toast('不支持该格式：'+(ext||'(无扩展名)')+'。支持 112 种常见格式','err');
+    toast(t('errUnsup')+(ext||''), 'err');
     return;
   }
   state = {file, srcExt:ext, target:null};
@@ -223,10 +314,10 @@ function handleFile(file){
 function renderSource(){
   const e = state.srcExt, cat=FMT[e];
   $('fileInfo').innerHTML =
-    '<div class="kv"><b>文件名</b>'+state.file.name+'</div>'+
-    '<div class="kv"><b>源格式</b><span class="tag mono">'+e+'</span></div>'+
-    '<div class="kv"><b>源类型</b>'+CAT_NAMES[cat]+'</div>'+
-    '<div class="kv"><b>大小</b>'+fmtSize(state.file.size)+'</div>';
+    '<div class="kv"><b>'+t('fname')+'</b>'+escapeHtml(state.file.name)+'</div>'+
+    '<div class="kv"><b>'+t('fmt')+'</b><span class="tag mono">'+e+'</span></div>'+
+    '<div class="kv"><b>'+t('ftype')+'</b>'+t('cat_'+cat)+'</div>'+
+    '<div class="kv"><b>'+t('size')+'</b>'+fmtSize(state.file.size)+'</div>';
 }
 function fmtSize(b){
   if(b<1024) return b+' B';
@@ -239,9 +330,13 @@ function targetsFor(src){
   const ca=FMT[src], out=[];
   for(const e in FMT){
     if(e===src) continue;
-    const m=methodOf(src,e);
-    if(m==='无法转换') continue;
-    out.push({e, c:FMT[e], m});
+    const cb=FMT[e];
+    let ok;
+    if(PROG.has(src)&&PROG.has(e)) ok=true;
+    else if(ca===cb) ok=true;
+    else { const raw=CROSS[ca]&&CROSS[ca][cb]; ok=!!raw && raw!==RAW_NO; }
+    if(!ok) continue;
+    out.push({e, c:cb, m:methodOf(src,e)});
   }
   out.sort((a,b)=>(a.c===ca?0:1)-(b.c===ca?0:1));
   return out;
@@ -252,14 +347,14 @@ function renderGroups(){
   const ca = FMT[state.srcExt];
   const groups = {};
   targets.forEach(t=>{ (groups[t.c]=groups[t.c]||[]).push(t); });
-  const order = Object.keys(CAT_NAMES).sort((a,b)=>(a===ca?-1:0)-(b===ca?-1:0));
+  const order = CATS.slice().sort((a,b)=>(a===ca?-1:0)-(b===ca?-1:0));
   const el = $('groups');
   el.innerHTML='';
   order.forEach(c=>{
     if(!groups[c]) return;
     const box=document.createElement('div'); box.className='group';
     const how = groups[c][0].m;
-    box.innerHTML = '<div class="gt"><span>'+(c===ca?'[同类] ':'')+CAT_NAMES[c]+'</span><span class="how mono">'+escapeHtml(how)+'</span></div>';
+    box.innerHTML = '<div class="gt"><span>'+(c===ca?(t('same')+' '):'')+t('cat_'+c)+'</span><span class="how mono">'+escapeHtml(how)+'</span></div>';
     const grid=document.createElement('div'); grid.className='grid';
     groups[c].forEach(t=>{
       const b=document.createElement('div'); b.className='tgt mono';
@@ -273,35 +368,35 @@ function renderGroups(){
 function escapeHtml(s){ return s.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); }
 
 /* ===== 选中目标 ===== */
-function selectTarget(t, node){
+function selectTarget(tgt, node){
   document.querySelectorAll('.tgt.sel').forEach(x=>x.classList.remove('sel'));
   node.classList.add('sel');
-  state.target = t;
-  $('method').textContent = t.m + '（'+state.srcExt+' → '+t.e+'）';
+  state.target = tgt;
+  $('method').textContent = tgt.m + '（'+state.srcExt+' → '+tgt.e+'）';
   renderParams();
   $('actCard').style.display='';
   $('convertBtn').disabled = false;
   $('dlMsg').textContent='';
-  $('note').textContent = canReal(t) ? '' : '提示：此转换为纯前端无法实时完成，需在服务端或本机程序处理。';
+  $('note').textContent = canReal(tgt) ? '' : t('note');
 }
 
-function canReal(t){
-  const ca=FMT[state.srcExt], cb=t.c;
-  if(ca==='img' && cb==='img' && IMG_MIME[t.e]) return true;
-  if(TEXT.has(state.srcExt) && TEXT.has(t.e) && state.srcExt!==t.e) return true;
+function canReal(tgt){
+  const ca=FMT[state.srcExt], cb=tgt.c;
+  if(ca==='img' && cb==='img' && IMG_MIME[tgt.e]) return true;
+  if(TEXT.has(state.srcExt) && TEXT.has(tgt.e) && state.srcExt!==tgt.e) return true;
   return false;
 }
 
 /* ===== 参数（图片转换） ===== */
 let paramVals = {w:'', gray:0, bright:1};
 function renderParams(){
-  const t=state.target, ca=FMT[state.srcExt];
+  const tgt=state.target, ca=FMT[state.srcExt];
   const box=$('params');
-  if(ca==='img' && t.c==='img' && IMG_MIME[t.e]){
+  if(ca==='img' && tgt.c==='img' && IMG_MIME[tgt.e]){
     box.innerHTML =
-      '<div class="param"><label>宽度 px（留空=原尺寸，高度等比）</label><input type="number" id="pW" min="1" placeholder="原尺寸"></div>'+
-      '<div class="param"><label>灰度 0–100%</label><input type="range" id="pG" min="0" max="100" value="0"><span class="val" id="pGV">0%</span></div>'+
-      '<div class="param"><label>亮度 ×0.5–×2</label><input type="range" id="pB" min="50" max="200" value="100"><span class="val" id="pBV">×1.0</span></div>';
+      '<div class="param"><label>'+t('widthPx')+'</label><input type="number" id="pW" min="1" placeholder="'+escapeHtml(t('widthPx'))+'"></div>'+
+      '<div class="param"><label>'+t('grayL')+'</label><input type="range" id="pG" min="0" max="100" value="0"><span class="val" id="pGV">0%</span></div>'+
+      '<div class="param"><label>'+t('brightL')+'</label><input type="range" id="pB" min="50" max="200" value="100"><span class="val" id="pBV">×1.0</span></div>';
     const g=$('pG'), b=$('pB');
     g.oninput=()=>{$('pGV').textContent=g.value+'%';};
     b.oninput=()=>{$('pBV').textContent='×'+(b.value/100).toFixed(1);};
@@ -313,42 +408,42 @@ function renderParams(){
 
 /* ===== 转换 ===== */
 $('convertBtn').addEventListener('click', async ()=>{
-  const btn=$('convertBtn'), t=state.target, dl=$('dlMsg');
-  if(!t) return;
-  btn.disabled=true; dl.textContent='转换中…';
+  const btn=$('convertBtn'), tgt=state.target, dl=$('dlMsg');
+  if(!tgt) return;
+  btn.disabled=true; dl.textContent=t('converting');
   try{
-    const name = await doConvert(t);
-    dl.textContent='已完成：'+name;
-    toast('转换完成，已开始下载','ok');
+    const name = await doConvert(tgt);
+    dl.textContent=t('donePrefix')+name;
+    toast(t('toastOk'),'ok');
   }catch(err){
     dl.textContent='';
-    toast(err.message||'转换失败','err');
+    toast(err.message||t('toastFail'),'err');
   }finally{
     btn.disabled=false;
   }
 });
 
-function doConvert(t){
-  const ca=FMT[state.srcExt], cb=t.c;
-  if(ca==='img' && cb==='img' && IMG_MIME[t.e]) return convertImage(t);
-  if(TEXT.has(state.srcExt) && TEXT.has(t.e) && state.srcExt!==t.e) return convertRename(t);
-  return Promise.reject(new Error('「'+state.srcExt+'→'+t.e+'」：'+t.m+'。纯前端无法实时转换，需服务端/本机程序处理'));
+function doConvert(tgt){
+  const ca=FMT[state.srcExt], cb=tgt.c;
+  if(ca==='img' && cb==='img' && IMG_MIME[tgt.e]) return convertImage(tgt);
+  if(TEXT.has(state.srcExt) && TEXT.has(tgt.e) && state.srcExt!==tgt.e) return convertRename(tgt);
+  return Promise.reject(new Error('「'+state.srcExt+'→'+tgt.e+'」：'+tgt.m+'。'+t('unsupFront')));
 }
 
-function convertRename(t){
+function convertRename(tgt){
   return new Promise((res,rej)=>{
     const fr=new FileReader();
     fr.onload=()=>{
       const blob=new Blob([fr.result], {type:'text/plain;charset=utf-8'});
-      const fname=baseName(state.file.name)+t.e;
+      const fname=baseName(state.file.name)+tgt.e;
       download(blob,fname); res(fname);
     };
-    fr.onerror=()=>rej(new Error('读取文件失败'));
+    fr.onerror=()=>rej(new Error(t('readFail')));
     fr.readAsArrayBuffer(state.file);
   });
 }
 
-function convertImage(t){
+function convertImage(tgt){
   return new Promise((res,rej)=>{
     const reader=new FileReader();
     reader.onload=()=>{
@@ -368,16 +463,16 @@ function convertImage(t){
           ctx.filter='grayscale('+g+'%) brightness('+br+')';
           ctx.drawImage(img,0,0,W,H);
           canvas.toBlob(blob=>{
-            if(!blob){ rej(new Error('该图片格式无法导出为 '+t.e)); return; }
-            const fname=baseName(state.file.name)+t.e;
+            if(!blob){ rej(new Error(t('imgExportFail')+tgt.e)); return; }
+            const fname=baseName(state.file.name)+tgt.e;
             download(blob,fname); res(fname);
-          }, IMG_MIME[t.e], 0.92);
-        }catch(e){ rej(new Error('图片处理失败：'+e.message)); }
+          }, IMG_MIME[tgt.e], 0.92);
+        }catch(e){ rej(new Error(t('imgFail')+e.message)); }
       };
-      img.onerror=()=>rej(new Error('无法读取源图片（可能格式不支持）'));
+      img.onerror=()=>rej(new Error(t('imgReadFail')));
       img.src=reader.result;
     };
-    reader.onerror=()=>rej(new Error('读取文件失败'));
+    reader.onerror=()=>rej(new Error(t('readFail')));
     reader.readAsDataURL(state.file);
   });
 }
@@ -389,6 +484,10 @@ function download(blob, filename){
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1000);
 }
+
+/* ===== 初始化 ===== */
+applyLang();
+applyTone();
 </script>
 </body>
 </html>
