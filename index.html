@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件转换器</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='4' width='18' height='16' rx='2' fill='none' stroke='%2338bdf8' stroke-width='2'/%3E%3Cpath d='M8 12h8M8 8h4M8 16h6' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --panel:#14171c;
+    --panel2:#1a1f26;
+    --line:#2a313b;
+    --text:#e6eaef;
+    --muted:#8b95a3;
+    --accent:#38bdf8;
+    --accent-dim:rgba(56,189,248,.12);
+    --ok:#34d399;
+    --warn:#fbbf24;
+    --err:#f87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    line-height:1.6;min-height:100vh;
+  }
+  .mono{font-family:ui-monospace,Consolas,"Courier New",monospace}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 20px 64px}
+  header{
+    display:flex;align-items:baseline;gap:14px;padding:8px 0 20px;
+    border-bottom:1px solid var(--line);margin-bottom:22px;
+  }
+  header h1{font-size:22px;font-weight:650;letter-spacing:.5px}
+  header h1 b{color:var(--accent);font-weight:650}
+  header span{color:var(--muted);font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:12px}
+  /* upload */
+  .drop{
+    border:1.5px dashed var(--line);border-radius:8px;padding:34px 18px;text-align:center;
+    cursor:pointer;transition:border-color .15s,background .15s;
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-dim)}
+  .drop .big{font-size:16px;font-weight:500;margin-bottom:6px}
+  .drop .small{color:var(--muted);font-size:13px}
+  .drop input[type=file]{display:none}
+  /* file info */
+  .info{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:14px}
+  .info .kv b{color:var(--muted);font-weight:500;margin-right:6px}
+  .info .tag{display:inline-block;padding:2px 9px;border-radius:4px;background:var(--accent-dim);color:var(--accent);font-size:12px}
+  /* target groups */
+  .groups{display:flex;flex-direction:column;gap:12px;max-height:340px;overflow:auto;padding-right:4px}
+  .group .gt{font-size:12px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:8px}
+  .group .gt .how{font-size:11px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:7px}
+  .tgt{
+    border:1px solid var(--line);background:var(--panel2);border-radius:6px;padding:7px 6px;
+    text-align:center;font-size:13px;cursor:pointer;transition:border-color .12s,background .12s,color .12s;
+  }
+  .tgt .e{display:block;font-family:ui-monospace,Consolas,monospace}
+  .tgt:hover{border-color:var(--accent)}
+  .tgt.sel{border-color:var(--accent);background:var(--accent-dim);color:#fff}
+  .tgt.sel .e{color:var(--accent)}
+  /* method + params */
+  .method{font-size:14px;color:var(--text);background:var(--panel2);border-left:3px solid var(--accent);padding:11px 14px;border-radius:0 6px 6px 0;line-height:1.7}
+  .params{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:12px}
+  .param{display:flex;flex-direction:column;gap:5px;min-width:150px}
+  .param label{font-size:12px;color:var(--muted)}
+  .param input[type=number]{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:6px 8px;font-size:13px;width:100%}
+  .param input[type=range]{width:100%;accent-color:var(--accent)}
+  .param .val{font-size:12px;color:var(--accent);text-align:right}
+  /* actions */
+  .actions{display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap}
+  .btn{
+    border:none;border-radius:6px;padding:11px 22px;font-size:15px;font-weight:600;cursor:pointer;
+    background:var(--accent);color:#062033;transition:filter .12s,opacity .12s;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .btn.ghost:hover{color:var(--text);border-color:var(--muted)}
+  .dl{font-size:13px;color:var(--ok)}
+  .note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
+  /* toast */
+  #toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+    background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    padding:11px 20px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;
+    transition:opacity .2s,transform .2s;z-index:50;max-width:88vw;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.ok{border-color:var(--ok);color:var(--ok)}
+  #toast.err{border-color:var(--err);color:var(--err)}
+  #toast.warn{border-color:var(--warn);color:var(--warn)}
+  @media(max-width:560px){
+    header{flex-direction:column;gap:2px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr))}
+    .btn{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>文件<b>转换器</b></h1>
+    <span>纯本地 · 按格式转换规则运行</span>
+  </header>
+
+  <!-- ===== 上传 ===== -->
+  <section class="card">
+    <h2>① 上传文件</h2>
+    <div class="drop" id="drop">
+      <div class="big">点击或拖拽文件到此处</div>
+      <div class="small">支持 .txt .docx .jpg .png .mp4 .zip 等 112 种格式</div>
+      <input type="file" id="fileInput">
+    </div>
+  </section>
+
+  <!-- ===== 源信息 + 目标选择 ===== -->
+  <section class="card" id="targetCard" style="display:none">
+    <h2>② 源文件与目标格式</h2>
+    <div class="info" id="fileInfo"></div>
+    <div style="margin-top:14px" class="groups" id="groups"></div>
+  </section>
+
+  <!-- ===== 转换方式 + 参数 + 执行 ===== -->
+  <section class="card" id="actCard" style="display:none">
+    <h2>③ 转换方式与执行</h2>
+    <div class="method" id="method"></div>
+    <div class="params" id="params"></div>
+    <div class="actions">
+      <button class="btn" id="convertBtn">转换并下载</button>
+      <span class="dl" id="dlMsg"></span>
+    </div>
+    <div class="note" id="note"></div>
+  </section>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ===== DATA（内置，与转换方式表一致） ===== */
+const CAT_NAMES = {doc:'文档', img:'图像', aud:'音频', vid:'视频', arc:'压缩/镜像', sys:'系统/可执行', dat:'数据/字体', code:'编程', '3d':'3D'};
+
+const FMT = {
+  '.txt':'doc','.rtf':'doc','.doc':'doc','.docx':'doc','.xls':'doc','.xlsx':'doc','.ppt':'doc','.pptx':'doc','.pdf':'doc','.odt':'doc','.ods':'doc','.odp':'doc',
+  '.html':'doc','.htm':'doc','.mht':'doc','.mhtml':'doc','.md':'doc','.epub':'doc','.mobi':'doc','.azw':'doc',
+  '.jpg':'img','.jpeg':'img','.png':'img','.gif':'img','.bmp':'img','.tif':'img','.tiff':'img','.webp':'img','.ico':'img','.heic':'img','.heif':'img','.svg':'img','.emf':'img','.wmf':'img','.raw':'img','.cr2':'img',
+  '.wav':'aud','.mp3':'aud','.wma':'aud','.flac':'aud','.aac':'aud','.m4a':'aud','.ogg':'aud','.oga':'aud','.mid':'aud','.midi':'aud','.aiff':'aud',
+  '.mp4':'vid','.avi':'vid','.wmv':'vid','.mov':'vid','.mkv':'vid','.webm':'vid','.m4v':'vid','.3gp':'vid','.mpeg':'vid','.mpg':'vid','.ts':'vid',
+  '.zip':'arc','.7z':'arc','.rar':'arc','.tar':'arc','.gz':'arc','.iso':'arc','.img':'arc','.vhd':'arc','.vhdx':'arc','.wim':'arc','.cab':'arc',
+  '.exe':'sys','.dll':'sys','.sys':'sys','.msi':'sys','.bat':'sys','.cmd':'sys','.ps1':'sys','.vbs':'sys','.reg':'sys','.ini':'sys','.inf':'sys','.lnk':'sys','.log':'sys',
+  '.ttf':'dat','.otf':'dat','.ttc':'dat','.fon':'dat','.csv':'dat','.json':'dat','.xml':'dat','.sql':'dat','.db':'dat','.sqlite':'dat','.mdb':'dat','.accdb':'dat','.ics':'dat','.vcf':'dat','.eml':'dat','.url':'dat',
+  '.py':'code','.js':'code','.java':'code','.c':'code','.cpp':'code','.css':'code','.apk':'code','.torrent':'code',
+  '.obj':'3d','.fbx':'3d','.stl':'3d','.gltf':'3d','.dwg':'3d','.dxf':'3d'
+};
+
+const PROG = new Set(['.exe','.dll','.sys','.msi','.bat','.cmd','.ps1','.vbs','.apk','.py','.js','.java','.c','.cpp']);
+const TEXT = new Set(['.txt','.md','.html','.htm','.csv','.json','.xml','.sql','.log','.ini','.css','.reg','.url']);
+const IMG_MIME = {'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.bmp':'image/bmp'};
+
+const CROSS = {
+  doc:{img:'截图输出（可调分辨率、灰度、亮度），px等比缩放', aud:'无法转换', vid:'先转图像再转视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'内容写入文件', dat:'无法转换', code:'打印文档效果或改后缀', '3d':'二进制转换'},
+  img:{doc:'插入文档', aud:'无法转换', vid:'作为视频帧（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'作为资源嵌入程序', dat:'像素数据导出（CSV/数组）', code:'转base64/代码资源', '3d':'作贴图/灰度生成3D'},
+  aud:{doc:'语音转文字写文档', img:'波形渲染为图像（可调分辨率、灰度、亮度）', vid:'作音轨生成视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'写入文件/程序资源', dat:'采样数据导出', code:'目标语言播放该音频', '3d':'波形数据映射3D'},
+  vid:{doc:'帧/字幕转录为文档', img:'提取帧为图像（可调分辨率、灰度、亮度）', aud:'提取音轨为音频', arc:'直接压缩或镜像', sys:'写入文件/程序资源', dat:'元数据/帧数据导出', code:'目标语言播放该视频', '3d':'帧作贴图映射3D'},
+  arc:{doc:'解压提取文档', img:'解压提取图像（可调分辨率、灰度、亮度）', aud:'解压提取音频', vid:'解压提取视频（可调时长、帧数、音量、分辨率、灰度、亮度）', sys:'解压提取程序文件', dat:'解压提取数据', code:'解压提取代码', '3d':'解压提取3D'},
+  sys:{doc:'运行输出存为文档', img:'界面截图存图像（可调分辨率、灰度、亮度）', aud:'音频输出存音频', vid:'录制运行画面为视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'打包为压缩/镜像', dat:'导出的数据存文件', code:'反编译还原/生成调用代码', '3d':'导出程序内3D资源'},
+  dat:{doc:'数据排版入文档', img:'数值渲染为图像（可调分辨率、灰度、亮度）', aud:'采样渲染为音频', vid:'序列渲染为视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'写入文件/作为参数', code:'转为代码字面量', '3d':'坐标/网格构建3D'},
+  code:{doc:'运行输出写文档', img:'运行生成图像（可调分辨率、灰度、亮度）', aud:'运行生成音频', vid:'运行渲染视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'打包为压缩包', sys:'编译打包为可执行', dat:'运行导出数据', '3d':'运行构建3D模型'},
+  '3d':{doc:'属性导出为文档', img:'渲染为图像（可调分辨率、灰度、亮度）', aud:'无法转换', vid:'渲染动画为视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'数据写入文件', dat:'网格/顶点数据导出', code:'目标语言生成/调用'}
+};
+
+/* ===== 状态 ===== */
+let state = {file:null, srcExt:'', target:null};
+
+const $ = id => document.getElementById(id);
+const toastEl = $('toast');
+let toastTimer=null;
+function toast(msg, type=''){
+  toastEl.textContent = msg;
+  toastEl.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toastEl.className='', 2600);
+}
+
+function baseName(name){ return name.replace(/\.[^.]+$/,''); }
+
+/* ===== 转换方式 ===== */
+function methodOf(src, dst){
+  const ca=FMT[src], cb=FMT[dst];
+  if(PROG.has(src) && PROG.has(dst)) return '转换为相同效果的程序';
+  if(ca===cb) return '直接转换';
+  return (CROSS[ca] && CROSS[ca][cb]) || '无法转换';
+}
+
+/* ===== 上传 ===== */
+const drop=$('drop'), fileInput=$('fileInput');
+drop.addEventListener('click', ()=>fileInput.click());
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop', e=>{ if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  const m = file.name.match(/\.([^.]+)$/);
+  const ext = m ? ('.'+m[1].toLowerCase()) : '';
+  if(!FMT[ext]){
+    toast('不支持该格式：'+(ext||'(无扩展名)')+'。支持 112 种常见格式','err');
+    return;
+  }
+  state = {file, srcExt:ext, target:null};
+  renderSource();
+  renderGroups();
+  $('actCard').style.display='none';
+  $('targetCard').style.display='';
+  $('convertBtn').disabled = true;
+  $('dlMsg').textContent='';
+}
+
+function renderSource(){
+  const e = state.srcExt, cat=FMT[e];
+  $('fileInfo').innerHTML =
+    '<div class="kv"><b>文件名</b>'+state.file.name+'</div>'+
+    '<div class="kv"><b>源格式</b><span class="tag mono">'+e+'</span></div>'+
+    '<div class="kv"><b>源类型</b>'+CAT_NAMES[cat]+'</div>'+
+    '<div class="kv"><b>大小</b>'+fmtSize(state.file.size)+'</div>';
+}
+function fmtSize(b){
+  if(b<1024) return b+' B';
+  if(b<1048576) return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(2)+' MB';
+}
+
+/* ===== 目标格式 ===== */
+function targetsFor(src){
+  const ca=FMT[src], out=[];
+  for(const e in FMT){
+    if(e===src) continue;
+    const m=methodOf(src,e);
+    if(m==='无法转换') continue;
+    out.push({e, c:FMT[e], m});
+  }
+  out.sort((a,b)=>(a.c===ca?0:1)-(b.c===ca?0:1));
+  return out;
+}
+
+function renderGroups(){
+  const targets = targetsFor(state.srcExt);
+  const ca = FMT[state.srcExt];
+  const groups = {};
+  targets.forEach(t=>{ (groups[t.c]=groups[t.c]||[]).push(t); });
+  const order = Object.keys(CAT_NAMES).sort((a,b)=>(a===ca?-1:0)-(b===ca?-1:0));
+  const el = $('groups');
+  el.innerHTML='';
+  order.forEach(c=>{
+    if(!groups[c]) return;
+    const box=document.createElement('div'); box.className='group';
+    const how = groups[c][0].m;
+    box.innerHTML = '<div class="gt"><span>'+(c===ca?'[同类] ':'')+CAT_NAMES[c]+'</span><span class="how mono">'+escapeHtml(how)+'</span></div>';
+    const grid=document.createElement('div'); grid.className='grid';
+    groups[c].forEach(t=>{
+      const b=document.createElement('div'); b.className='tgt mono';
+      b.innerHTML='<span class="e">'+t.e+'</span>';
+      b.onclick=()=>selectTarget(t, b);
+      grid.appendChild(b);
+    });
+    box.appendChild(grid); el.appendChild(box);
+  });
+}
+function escapeHtml(s){ return s.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); }
+
+/* ===== 选中目标 ===== */
+function selectTarget(t, node){
+  document.querySelectorAll('.tgt.sel').forEach(x=>x.classList.remove('sel'));
+  node.classList.add('sel');
+  state.target = t;
+  $('method').textContent = t.m + '（'+state.srcExt+' → '+t.e+'）';
+  renderParams();
+  $('actCard').style.display='';
+  $('convertBtn').disabled = false;
+  $('dlMsg').textContent='';
+  $('note').textContent = canReal(t) ? '' : '提示：此转换为纯前端无法实时完成，需在服务端或本机程序处理。';
+}
+
+function canReal(t){
+  const ca=FMT[state.srcExt], cb=t.c;
+  if(ca==='img' && cb==='img' && IMG_MIME[t.e]) return true;
+  if(TEXT.has(state.srcExt) && TEXT.has(t.e) && state.srcExt!==t.e) return true;
+  return false;
+}
+
+/* ===== 参数（图片转换） ===== */
+let paramVals = {w:'', gray:0, bright:1};
+function renderParams(){
+  const t=state.target, ca=FMT[state.srcExt];
+  const box=$('params');
+  if(ca==='img' && t.c==='img' && IMG_MIME[t.e]){
+    box.innerHTML =
+      '<div class="param"><label>宽度 px（留空=原尺寸，高度等比）</label><input type="number" id="pW" min="1" placeholder="原尺寸"></div>'+
+      '<div class="param"><label>灰度 0–100%</label><input type="range" id="pG" min="0" max="100" value="0"><span class="val" id="pGV">0%</span></div>'+
+      '<div class="param"><label>亮度 ×0.5–×2</label><input type="range" id="pB" min="50" max="200" value="100"><span class="val" id="pBV">×1.0</span></div>';
+    const g=$('pG'), b=$('pB');
+    g.oninput=()=>{$('pGV').textContent=g.value+'%';};
+    b.oninput=()=>{$('pBV').textContent='×'+(b.value/100).toFixed(1);};
+    $('pW').value = paramVals.w;
+  } else {
+    box.innerHTML='';
+  }
+}
+
+/* ===== 转换 ===== */
+$('convertBtn').addEventListener('click', async ()=>{
+  const btn=$('convertBtn'), t=state.target, dl=$('dlMsg');
+  if(!t) return;
+  btn.disabled=true; dl.textContent='转换中…';
+  try{
+    const name = await doConvert(t);
+    dl.textContent='已完成：'+name;
+    toast('转换完成，已开始下载','ok');
+  }catch(err){
+    dl.textContent='';
+    toast(err.message||'转换失败','err');
+  }finally{
+    btn.disabled=false;
+  }
+});
+
+function doConvert(t){
+  const ca=FMT[state.srcExt], cb=t.c;
+  if(ca==='img' && cb==='img' && IMG_MIME[t.e]) return convertImage(t);
+  if(TEXT.has(state.srcExt) && TEXT.has(t.e) && state.srcExt!==t.e) return convertRename(t);
+  return Promise.reject(new Error('「'+state.srcExt+'→'+t.e+'」：'+t.m+'。纯前端无法实时转换，需服务端/本机程序处理'));
+}
+
+function convertRename(t){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const blob=new Blob([fr.result], {type:'text/plain;charset=utf-8'});
+      const fname=baseName(state.file.name)+t.e;
+      download(blob,fname); res(fname);
+    };
+    fr.onerror=()=>rej(new Error('读取文件失败'));
+    fr.readAsArrayBuffer(state.file);
+  });
+}
+
+function convertImage(t){
+  return new Promise((res,rej)=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const wIn=$('pW');
+          let targetW = wIn && wIn.value ? parseInt(wIn.value,10) : 0;
+          let scale = targetW>0 ? targetW/img.naturalWidth : 1;
+          const W=Math.max(1, Math.round(img.naturalWidth*scale));
+          const H=Math.max(1, Math.round(img.naturalHeight*scale));
+          const canvas=document.createElement('canvas');
+          canvas.width=W; canvas.height=H;
+          const ctx=canvas.getContext('2d');
+          const g = paramVals.gray = parseInt($('pG')?$('pG').value:0,10);
+          const br = paramVals.bright = parseInt($('pB')?$('pB').value:100,10)/100;
+          ctx.filter='grayscale('+g+'%) brightness('+br+')';
+          ctx.drawImage(img,0,0,W,H);
+          canvas.toBlob(blob=>{
+            if(!blob){ rej(new Error('该图片格式无法导出为 '+t.e)); return; }
+            const fname=baseName(state.file.name)+t.e;
+            download(blob,fname); res(fname);
+          }, IMG_MIME[t.e], 0.92);
+        }catch(e){ rej(new Error('图片处理失败：'+e.message)); }
+      };
+      img.onerror=()=>rej(new Error('无法读取源图片（可能格式不支持）'));
+      img.src=reader.result;
+    };
+    reader.onerror=()=>rej(new Error('读取文件失败'));
+    reader.readAsDataURL(state.file);
+  });
+}
+
+function download(blob, filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1000);
+}
+</script>
+</body>
+</html>
