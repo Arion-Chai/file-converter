@@ -22,11 +22,15 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
+  /* 黑白主题：浅底黑字，与深色彩色主题形成明显区分 */
   body.bw{
-    --bg:#050505;--panel:#0d0d0d;--panel2:#161616;--line:#2e2e2e;
-    --text:#f2f2f2;--muted:#9c9c9c;--accent:#e8e8e8;
-    --accent-dim:rgba(255,255,255,.08);--ok:#c8c8c8;--warn:#d5d5d5;--err:#e0e0e0;
+    --bg:#ffffff;--panel:#ffffff;--panel2:#f2f2f2;--line:#111111;
+    --text:#0a0a0a;--muted:#555555;--accent:#000000;
+    --accent-dim:rgba(0,0,0,.07);--ok:#0a0a0a;--warn:#0a0a0a;--err:#111111;
+    color-scheme:light;
   }
+  body.bw .btn{color:#fff}
+  body.bw .tgt.sel{color:#fff}
   body{
     background:var(--bg);color:var(--text);
     font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
@@ -52,7 +56,6 @@
   }
   .side-btn:hover{border-color:var(--accent)}
   .side-btn.sel{border-color:var(--accent);background:var(--accent-dim);color:var(--accent);font-weight:600}
-  html[dir=rtl] .side-btn{text-align:right}
   header{
     display:flex;align-items:baseline;gap:14px;padding:8px 0 20px;
     border-bottom:1px solid var(--line);margin-bottom:22px;
@@ -215,7 +218,6 @@ let TONE = localStorage.getItem('conv_tone')||'color';
 const t = k => (I18N[LANG]&&I18N[LANG][k]!==undefined)?I18N[LANG][k]:(I18N.zh[k]||k);
 function applyLang(){
   document.documentElement.lang = LANG;
-  document.documentElement.dir = (LANG==='ar')?'rtl':'ltr';
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.getAttribute('data-i18n')); });
   document.querySelectorAll('#langOpts .side-btn').forEach(b=>b.classList.toggle('sel', b.dataset.lang===LANG));
   if(state.srcExt){
