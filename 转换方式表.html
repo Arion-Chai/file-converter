@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>转换方式表</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='4' width='18' height='16' rx='2' fill='none' stroke='%2338bdf8' stroke-width='2'/%3E%3Cpath d='M8 12h8M8 8h4M8 16h6' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0b0d10;--panel:#14171c;--panel2:#1a1f26;--line:#2a313b;
+    --text:#e6eaef;--muted:#8b95a3;--accent:#38bdf8;
+    --green:#34d399;--red:#f87171;--green-dim:rgba(52,211,153,.08);--red-dim:rgba(248,113,113,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;min-height:100vh}
+  .mono{font-family:ui-monospace,Consolas,"Courier New",monospace}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-size:20px;font-weight:650}
+  header .sub{color:var(--muted);font-size:13px}
+  .bar{padding:12px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .bar label{font-size:13px;color:var(--muted)}
+  .bar select,.bar input{
+    background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:6px 10px;font-size:13px;
+  }
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);align-items:center}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .dot.g{background:var(--green)}.dot.r{background:var(--red)}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px 24px 60px}
+  .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:70vh}
+  table{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}
+  col.c1{width:16%}col.c2{width:16%}col.c3{width:52%}col.c4{width:16%}
+  thead th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:600;text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);z-index:2}
+  tbody td{padding:7px 12px;border-bottom:1px solid var(--line);vertical-align:top;word-break:break-word}
+  tbody tr.yes{background:var(--green-dim)}
+  tbody tr.no{background:var(--red-dim)}
+  tr.yes td.stat{color:var(--green);font-weight:600}
+  tr.no td.stat{color:var(--red);font-weight:600}
+  tr.yes td.c3{color:var(--green)}
+  tr.no td.c3{color:var(--red)}
+  tbody tr:nth-child(even){filter:brightness(.97)}
+  .pager{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .pager button{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer}
+  .pager button:hover{border-color:var(--accent)}
+  .pager button:disabled{opacity:.4;cursor:not-allowed}
+  .pager span{font-size:13px;color:var(--muted)}
+  .count{font-size:12px;color:var(--muted);margin-top:8px}
+  @media(max-width:640px){col.c3{width:44%}col.c1{width:20%}col.c2{width:20%}col.c4{width:16%}}
+</style>
+</head>
+<body>
+<header>
+  <h1>转换方式表</h1>
+  <span class="sub" id="sub"></span>
+</header>
+<div class="bar">
+  <label>按源格式筛选</label>
+  <select id="srcSel"></select>
+  <div class="legend"><span><span class="dot g"></span>当前可转换（绿）</span><span><span class="dot r"></span>需服务端/本机（红）</span></div>
+</div>
+<div class="wrap">
+  <div class="table-wrap">
+    <table>
+      <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>
+      <thead><tr><th>源格式</th><th>目标格式</th><th>转换方式</th><th>状态</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="count" id="count"></div>
+  <div class="pager">
+    <button id="prev">上一页</button>
+    <span id="pageInfo"></span>
+    <button id="next">下一页</button>
+  </div>
+</div>
+<script>
+/* ===== 格式与类别 ===== */
+const FMT = {
+  '.txt':'doc','.rtf':'doc','.doc':'doc','.docx':'doc','.xls':'doc','.xlsx':'doc','.ppt':'doc','.pptx':'doc','.pdf':'doc','.odt':'doc','.ods':'doc','.odp':'doc',
+  '.html':'doc','.htm':'doc','.mht':'doc','.mhtml':'doc','.md':'doc','.epub':'doc','.mobi':'doc','.azw':'doc',
+  '.jpg':'img','.jpeg':'img','.png':'img','.gif':'img','.bmp':'img','.tif':'img','.tiff':'img','.webp':'img','.ico':'img','.heic':'img','.heif':'img','.svg':'img','.emf':'img','.wmf':'img','.raw':'img','.cr2':'img',
+  '.wav':'aud','.mp3':'aud','.wma':'aud','.flac':'aud','.aac':'aud','.m4a':'aud','.ogg':'aud','.oga':'aud','.mid':'aud','.midi':'aud','.aiff':'aud',
+  '.mp4':'vid','.avi':'vid','.wmv':'vid','.mov':'vid','.mkv':'vid','.webm':'vid','.m4v':'vid','.3gp':'vid','.mpeg':'vid','.mpg':'vid','.ts':'vid',
+  '.zip':'arc','.7z':'arc','.rar':'arc','.tar':'arc','.gz':'arc','.iso':'arc','.img':'arc','.vhd':'arc','.vhdx':'arc','.wim':'arc','.cab':'arc',
+  '.exe':'sys','.dll':'sys','.sys':'sys','.msi':'sys','.bat':'sys','.cmd':'sys','.ps1':'sys','.vbs':'sys','.reg':'sys','.ini':'sys','.inf':'sys','.lnk':'sys','.log':'sys',
+  '.ttf':'dat','.otf':'dat','.ttc':'dat','.fon':'dat','.csv':'dat','.json':'dat','.xml':'dat','.sql':'dat','.db':'dat','.sqlite':'dat','.mdb':'dat','.accdb':'dat','.ics':'dat','.vcf':'dat','.eml':'dat','.url':'dat',
+  '.py':'code','.js':'code','.java':'code','.c':'code','.cpp':'code','.css':'code','.apk':'code','.torrent':'code','.sb3':'code',
+  '.obj':'3d','.fbx':'3d','.stl':'3d','.gltf':'3d','.dwg':'3d','.dxf':'3d'
+};
+const PROG = new Set(['.exe','.dll','.sys','.msi','.bat','.cmd','.ps1','.vbs','.apk','.py','.js','.java','.c','.cpp','.sb3']);
+const TEXT = new Set(['.txt','.md','.html','.htm','.csv','.json','.xml','.sql','.log','.ini','.css','.reg','.url']);
+const IMG_MIME = {'.png':1,'.jpg':1,'.jpeg':1,'.webp':1,'.gif':1,'.bmp':1};
+const CATS = ['doc','img','aud','vid','arc','sys','dat','code','3d'];
+const CAT_NAMES = {doc:'文档',img:'图像',aud:'音频',vid:'视频',arc:'压缩/镜像',sys:'系统/可执行',dat:'数据/字体',code:'编程','3d':'3D'};
+const CROSS = {
+  doc:{img:'截图输出（可调分辨率、灰度、亮度），px等比缩放', aud:'无法转换', vid:'先转图像再转视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'内容写入文件', dat:'无法转换', code:'打印文档效果或改后缀', '3d':'二进制转换'},
+  img:{doc:'插入文档', aud:'无法转换', vid:'作为视频帧（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'作为资源嵌入程序', dat:'像素数据导出（CSV/数组）', code:'转base64/代码资源', '3d':'作贴图/灰度生成3D'},
+  aud:{doc:'语音转文字写文档', img:'波形渲染为图像（可调分辨率、灰度、亮度）', vid:'作音轨生成视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'写入文件/程序资源', dat:'采样数据导出', code:'目标语言播放该音频', '3d':'波形数据映射3D'},
+  vid:{doc:'帧/字幕转录为文档', img:'提取帧为图像（可调分辨率、灰度、亮度）', aud:'提取音轨为音频', arc:'直接压缩或镜像', sys:'写入文件/程序资源', dat:'元数据/帧数据导出', code:'目标语言播放该视频', '3d':'帧作贴图映射3D'},
+  arc:{doc:'解压提取文档', img:'解压提取图像（可调分辨率、灰度、亮度）', aud:'解压提取音频', vid:'解压提取视频（可调时长、帧数、音量、分辨率、灰度、亮度）', sys:'解压提取程序文件', dat:'解压提取数据', code:'解压提取代码', '3d':'解压提取3D'},
+  sys:{doc:'运行输出存为文档', img:'界面截图存图像（可调分辨率、灰度、亮度）', aud:'音频输出存音频', vid:'录制运行画面为视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'打包为压缩/镜像', dat:'导出的数据存文件', code:'反编译还原/生成调用代码', '3d':'导出程序内3D资源'},
+  dat:{doc:'数据排版入文档', img:'数值渲染为图像（可调分辨率、灰度、亮度）', aud:'采样渲染为音频', vid:'序列渲染为视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'写入文件/作为参数', code:'转为代码字面量', '3d':'坐标/网格构建3D'},
+  code:{doc:'运行输出写文档', img:'运行生成图像（可调分辨率、灰度、亮度）', aud:'运行生成音频', vid:'运行渲染视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'打包为压缩包', sys:'编译打包为可执行', dat:'运行导出数据', '3d':'运行构建3D模型'},
+  '3d':{doc:'属性导出为文档', img:'渲染为图像（可调分辨率、灰度、亮度）', aud:'无法转换', vid:'渲染动画为视频（可调时长、帧数、音量、分辨率、灰度、亮度）', arc:'直接压缩或镜像', sys:'数据写入文件', dat:'网格/顶点数据导出', code:'目标语言生成/调用'}
+};
+function methodOf(src, dst){
+  const ca=FMT[src], cb=FMT[dst];
+  if(PROG.has(src) && PROG.has(dst)) return '转换为相同效果的程序';
+  if(ca===cb) return '直接转换';
+  const raw=(CROSS[ca]&&CROSS[ca][cb])||'无法转换';
+  return raw;
+}
+function canReal(s,d){
+  const ca=FMT[s], cb=FMT[d];
+  if(ca==='img' && cb==='img' && IMG_MIME[d]) return true;
+  if(TEXT.has(s) && TEXT.has(d) && s!==d) return true;
+  return false;
+}
+/* ===== 生成全部组合 ===== */
+const ALL = Object.keys(FMT);
+const rows = [];
+for(const s of ALL){
+  for(const d of ALL){
+    if(s===d) continue;
+    rows.push({s, d, m:methodOf(s,d), ok:canReal(s,d)});
+  }
+}
+/* ===== 渲染 ===== */
+const tbody = document.getElementById('tbody');
+const srcSel = document.getElementById('srcSel');
+const PAGE = 800;
+let filter = '', page = 0;
+function filteredRows(){
+  return filter ? rows.filter(r=>r.s===filter) : rows;
+}
+function render(){
+  const list = filteredRows();
+  const pages = Math.max(1, Math.ceil(list.length/PAGE));
+  if(page>=pages) page = pages-1;
+  const start = page*PAGE, end = Math.min(start+PAGE, list.length);
+  const frag = document.createDocumentFragment();
+  for(let i=start;i<end;i++){
+    const r = list[i];
+    const tr = document.createElement('tr');
+    tr.className = r.ok?'yes':'no';
+    const mk = t=>{const td=document.createElement('td');td.textContent=t;return td;};
+    tr.appendChild(mk(r.s));
+    tr.appendChild(mk(r.d));
+    const td3 = mk(r.m); td3.className='c3'; tr.appendChild(td3);
+    const td4 = mk(r.ok?'可转换':'需服务端'); td4.className='stat'; tr.appendChild(td4);
+    frag.appendChild(tr);
+  }
+  tbody.replaceChildren(frag);
+  document.getElementById('count').textContent = '共 '+list.length+' 条｜当前页 '+ (start+1) +'-'+ end;
+  document.getElementById('pageInfo').textContent = '第 '+(page+1)+' / '+pages+' 页';
+  document.getElementById('prev').disabled = page<=0;
+  document.getElementById('next').disabled = page>=pages-1;
+}
+srcSel.innerHTML = '<option value="">全部格式</option>' + ALL.map(f=>'<option value="'+f+'">'+f+'</option>').join('');
+srcSel.addEventListener('change', ()=>{ filter=srcSel.value; page=0; render(); });
+document.getElementById('prev').addEventListener('click', ()=>{ if(page>0){page--;render();} });
+document.getElementById('next').addEventListener('click', ()=>{ page++; render(); });
+document.getElementById('sub').textContent = ALL.length + ' 种格式 × ' + (ALL.length-1) + ' = ' + rows.length + ' 条组合';
+render();
+</script>
+</body>
+</html>
