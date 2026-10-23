@@ -256,6 +256,8 @@ const FMT = {
 
 const PROG = new Set(['.exe','.dll','.sys','.msi','.bat','.cmd','.ps1','.vbs','.apk','.py','.js','.java','.c','.cpp','.sb3']);
 const TEXT = new Set(['.txt','.md','.html','.htm','.csv','.json','.xml','.sql','.log','.ini','.css','.reg','.url']);
+const DOC_TEXT = new Set(['.txt','.md','.html','.htm']);
+const DATA_TEXT = new Set(['.csv','.json','.xml','.sql']);
 const IMG_MIME = {'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.bmp':'image/bmp'};
 
 const CROSS = {
@@ -388,9 +390,10 @@ function selectTarget(tgt, node){
 }
 
 function canReal(tgt){
-  const ca=FMT[state.srcExt], cb=tgt.c;
-  if(ca==='img' && cb==='img' && IMG_MIME[tgt.e]) return true;
-  if(TEXT.has(state.srcExt) && TEXT.has(tgt.e) && state.srcExt!==tgt.e) return true;
+  const ca=FMT[state.srcExt], cb=tgt.c, s=state.srcExt, d=tgt.e;
+  if(ca==='img' && cb==='img' && IMG_MIME[d]) return true;
+  if(TEXT.has(s) && TEXT.has(d) && s!==d) return true;
+  if(ca==='aud' && d==='.wav' && s!==d) return true;
   return false;
 }
 
@@ -431,10 +434,15 @@ $('convertBtn').addEventListener('click', async ()=>{
 });
 
 function doConvert(tgt){
-  const ca=FMT[state.srcExt], cb=tgt.c;
-  if(ca==='img' && cb==='img' && IMG_MIME[tgt.e]) return convertImage(tgt);
-  if(TEXT.has(state.srcExt) && TEXT.has(tgt.e) && state.srcExt!==tgt.e) return convertRename(tgt);
-  return Promise.reject(new Error('「'+state.srcExt+'→'+tgt.e+'」：'+tgt.m+'。'+t('unsupFront')));
+  const ca=FMT[state.srcExt], cb=tgt.c, s=state.srcExt, d=tgt.e;
+  if(ca==='img' && cb==='img' && IMG_MIME[d]) return convertImage(tgt);
+  if(TEXT.has(s) && TEXT.has(d) && s!==d){
+    if(DOC_TEXT.has(s) && DOC_TEXT.has(d)) return convertDocText(tgt);
+    if(DATA_TEXT.has(s) && DATA_TEXT.has(d)) return convertDataText(tgt);
+    return convertRename(tgt);
+  }
+  if(ca==='aud' && d==='.wav' && s!==d) return convertAudioWav(tgt);
+  return Promise.reject(new Error('「'+s+'→'+d+'」：'+tgt.m+'。'+t('unsupFront')));
 }
 
 function convertRename(tgt){
@@ -448,6 +456,181 @@ function convertRename(tgt){
     fr.onerror=()=>rej(new Error(t('readFail')));
     fr.readAsArrayBuffer(state.file);
   });
+}
+
+/* ===== 文本文档互转（txt/md/html/htm） ===== */
+function convertDocText(tgt){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      try{
+        const out=docConvert(fr.result, state.srcExt, tgt.e);
+        const fname=baseName(state.file.name)+tgt.e;
+        download(new Blob([out],{type:'text/plain;charset=utf-8'}), fname);
+        res(fname);
+      }catch(e){ rej(new Error(e.message||t('imgFail'))); }
+    };
+    fr.onerror=()=>rej(new Error(t('readFail')));
+    fr.readAsText(state.file);
+  });
+}
+function docConvert(src, s, d){
+  if(d==='.html'||d==='.htm'){
+    if(s==='.html'||s==='.htm') return src;
+    if(s==='.md') return wrapHtml(mdToHtml(src));
+    return wrapHtml(txtToHtml(src));
+  }
+  if(d==='.md'){
+    if(s==='.md') return src;
+    if(s==='.html'||s==='.htm') return htmlToMd(src);
+    return src; /* txt→md：以 Markdown 纯文本形式 */
+  }
+  /* d==='.txt' */
+  if(s==='.txt') return src;
+  if(s==='.md') return mdToTxt(src);
+  return htmlToTxt(src);
+}
+function wrapHtml(body){
+  return '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>文档</title>\n</head>\n<body>\n'+body+'\n</body>\n</html>';
+}
+function txtToHtml(t){
+  return t.split(/\n\s*\n/).map(p=>'<p>'+escapeHtml(p.trim())+'</p>').join('\n');
+}
+function mdToHtml(t){
+  return t.split('\n').map(l=>{
+    const m=l.match(/^(#{1,6})\s+(.*)/);
+    if(m) return '<h'+m[1].length+'>'+m[2]+'</h'+m[1].length+'>';
+    if(/^[-*]\s+/.test(l)) return '<li>'+l.replace(/^[-*]\s+/,'')+'</li>';
+    if(l.trim()==='') return '';
+    return '<p>'+l+'</p>';
+  }).join('\n');
+}
+function mdToTxt(t){ return t.replace(/^(#{1,6})\s+/gm,'').replace(/^[-*]\s+/gm,'').replace(/[*_]/g,''); }
+function htmlToTxt(t){ return t.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'"); }
+function htmlToMd(t){
+  let out=htmlToTxt(t).split('\n').map(l=>l.trim()).filter(Boolean).join('\n');
+  return out;
+}
+
+/* ===== 数据文本互转（csv/json/xml/sql） ===== */
+function convertDataText(tgt){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      try{
+        const rows=parseData(fr.result, state.srcExt);
+        const out=emitData(rows, tgt.e);
+        const fname=baseName(state.file.name)+tgt.e;
+        download(new Blob([out],{type:'text/plain;charset=utf-8'}), fname);
+        res(fname);
+      }catch(e){ rej(new Error(e.message||t('imgFail'))); }
+    };
+    fr.onerror=()=>rej(new Error(t('readFail')));
+    fr.readAsText(state.file);
+  });
+}
+function parseCsv(t){
+  const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
+  const rows=[]; let row=[], cur='', inQ=false;
+  for(const line of lines){
+    if(!inQ && rows.length===0 && row.length===0){ }
+    let i=0;
+    while(i<line.length){
+      const ch=line[i];
+      if(inQ){
+        if(ch==='"' && line[i+1]==='"'){ cur+='"'; i+=2; continue; }
+        if(ch==='"'){ inQ=false; i++; continue; }
+        cur+=ch; i++;
+      }else{
+        if(ch==='"'){ inQ=true; i++; }
+        else if(ch===','){ row.push(cur); cur=''; i++; }
+        else if(ch==='\n'){ row.push(cur); cur=''; rows.push(row); row=[]; i++; }
+        else { cur+=ch; i++; }
+      }
+    }
+    row.push(cur); cur=''; rows.push(row); row=[];
+  }
+  return rows;
+}
+function parseData(text, s){
+  if(s==='.csv'){ const rows=parseCsv(text); return {cols:rows[0]||[], rows:rows.slice(1)}; }
+  if(s==='.json'){
+    const data=JSON.parse(text);
+    const arr=Array.isArray(data)?data:(data&&typeof data==='object'?Object.entries(data).map(([k,v])=>({key:k,value:v})):[data]);
+    const cols=arr.length?Object.keys(arr[0]):[];
+    return {cols, rows:arr.map(o=>cols.map(c=>o[c]))};
+  }
+  if(s==='.xml'){
+    const doc=new DOMParser().parseFromString(text,'text/xml');
+    const root=doc.documentElement;
+    const rowsEls=root.querySelectorAll('row');
+    if(rowsEls.length){ const cols=[...rowsEls[0].children].map(c=>c.tagName); return {cols, rows:[...rowsEls].map(r=>[...r.children].map(c=>c.textContent))}; }
+    const items=[...root.children].filter(e=>e.children.length>0);
+    const cols=items.length?[...items[0].children].map(c=>c.tagName):[];
+    return {cols, rows:items.map(it=>[...it.children].map(c=>c.textContent))};
+  }
+  if(s==='.sql'){
+    const cols=[...text.matchAll(/CREATE TABLE[^\(]*\(([^)]*)\)/gi)].flatMap(m=>m[1].split(',').map(c=>c.trim().split(/\s+/)[0].replace(/`|"|'/g,'')).filter(Boolean));
+    const rows=[];
+    for(const m of text.matchAll(/INSERT\s+INTO\s+[\w."`]+\s*(?:\(([^)]*)\))?\s*VALUES\s*(\([^;]*\))/gi)){
+      const vals=[...m[2].replace(/^\(|\)$/g,'').matchAll(/(?:'([^']*)'|"([^"]*)"|([^,()]+))/g)].map(x=>(x[1]!==undefined?x[1]:x[2]!==undefined?x[2]:x[3].trim()));
+      rows.push(vals);
+    }
+    return {cols, rows};
+  }
+  throw new Error('不支持解析：'+s);
+}
+function escSql(v){ return "'"+String(v).replace(/'/g,"''")+"'"; }
+function emitData(r, d){
+  const {cols, rows}=r;
+  if(d==='.csv'){ return [cols.join(','), ...rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))].join('\n'); }
+  if(d==='.json'){ return JSON.stringify(rows.map(row=>{const o={};cols.forEach((c,i)=>o[c]=row[i]);return o;}),null,2); }
+  if(d==='.xml'){ return '<root>\n'+rows.map(row=>'  <row>'+cols.map((c,i)=>'<'+c+'>'+String(row[i]||'').replace(/[<>&]/g,x=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[x]))+'</'+c+'>').join('')+'</row>').join('\n')+'\n</root>'; }
+  if(d==='.sql'){
+    const table=cols.length?cols[0].replace(/[^a-zA-Z0-9_]/g,'_'):'t';
+    const defs=cols.map(c=>'"'+c.replace(/[^a-zA-Z0-9_]/g,'_')+'" TEXT').join(', ');
+    const ins=rows.map(row=>'INSERT INTO '+table+' ('+cols.map(c=>'"'+c.replace(/[^a-zA-Z0-9_]/g,'_')+'"').join(', ')+') VALUES ('+row.map(escSql).join(', ')+');').join('\n');
+    return 'CREATE TABLE IF NOT EXISTS '+table+' ('+defs+');\n'+ins;
+  }
+  throw new Error('不支持输出：'+d);
+}
+
+/* ===== 音频→WAV（Web Audio 解码 + WAV 编码） ===== */
+function convertAudioWav(tgt){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const Ctx=window.AudioContext||window.webkitAudioContext;
+      if(!Ctx){ rej(new Error('此浏览器不支持音频解码')); return; }
+      const ctx=new Ctx();
+      ctx.decodeAudioData(fr.result).then(audio=>{
+        try{
+          const blob=wavEncode(audio);
+          const fname=baseName(state.file.name)+'.wav';
+          download(blob,fname); res(fname);
+        }catch(e){ rej(new Error('音频编码失败：'+e.message)); }
+      },()=>{ ctx.close(); rej(new Error('浏览器无法解码该音频（仅支持 WAV/MP3/OGG/AAC/M4A 等）')); });
+    };
+    fr.onerror=()=>rej(new Error(t('readFail')));
+    fr.readAsArrayBuffer(state.file);
+  });
+}
+function wavEncode(audio){
+  const numCh=Math.min(2, audio.numberOfChannels);
+  const sr=audio.sampleRate, len=audio.length;
+  const n=len*numCh;
+  const inter=new Float32Array(n);
+  for(let c=0;c<numCh;c++){ const data=audio.getChannelData(c); for(let i=0;i<len;i++) inter[i*numCh+c]=data[i]; }
+  const buf=new ArrayBuffer(44+n*2);
+  const dv=new DataView(buf);
+  const put=(s,o)=>{ for(let i=0;i<s.length;i++) dv.setUint8(o+i,s.charCodeAt(i)); };
+  put('RIFF',0); dv.setUint32(4,36+n*2,true); put('WAVE',8);
+  put('fmt ',12); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,numCh,true);
+  dv.setUint32(24,sr,true); dv.setUint32(28,sr*numCh*2,true); dv.setUint16(32,numCh*2,true); dv.setUint16(34,16,true);
+  put('data',36); dv.setUint32(40,n*2,true);
+  let off=44;
+  for(let i=0;i<n;i++){ let v=Math.max(-1,Math.min(1,inter[i])); dv.setInt16(off, v<0?v*32768:v*32767, true); off+=2; }
+  return new Blob([dv],{type:'audio/wav'});
 }
 
 function convertImage(tgt){
