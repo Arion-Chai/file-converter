@@ -113,6 +113,7 @@ function canReal(s,d){
   const ca=FMT[s], cb=FMT[d];
   if(ca==='img' && cb==='img' && IMG_MIME[d]) return true;
   if(TEXT.has(s) && TEXT.has(d) && s!==d) return true;
+  if(ca==='aud' && d==='.wav' && s!==d) return true;
   return false;
 }
 /* ===== 生成全部组合 ===== */
