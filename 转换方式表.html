@@ -89,6 +89,7 @@ const FMT = {
 const PROG = new Set(['.exe','.dll','.sys','.msi','.bat','.cmd','.ps1','.vbs','.apk','.py','.js','.java','.c','.cpp','.sb3']);
 const TEXT = new Set(['.txt','.md','.html','.htm','.csv','.json','.xml','.sql','.log','.ini','.css','.reg','.url']);
 const IMG_MIME = {'.png':1,'.jpg':1,'.jpeg':1,'.webp':1,'.gif':1,'.bmp':1};
+const CONV3D = new Set(['.obj','.stl','.ply','.gltf','.dxf']);
 const CATS = ['doc','img','aud','vid','arc','sys','dat','code','3d'];
 const CAT_NAMES = {doc:'文档',img:'图像',aud:'音频',vid:'视频',arc:'压缩/镜像',sys:'系统/可执行',dat:'数据/字体',code:'编程','3d':'3D'};
 const CROSS = {
@@ -114,6 +115,7 @@ function canReal(s,d){
   if(ca==='img' && cb==='img' && IMG_MIME[d]) return true;
   if(TEXT.has(s) && TEXT.has(d) && s!==d) return true;
   if(ca==='aud' && d==='.wav' && s!==d) return true;
+  if(CONV3D.has(s) && CONV3D.has(d) && s!==d) return true;
   return false;
 }
 /* ===== 生成全部组合 ===== */
