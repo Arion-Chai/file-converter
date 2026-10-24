@@ -1,0 +1,39 @@
+name: File Convert
+
+on:
+  push:
+    paths:
+      - 'inbox/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup ffmpeg
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg zip unzip
+
+      - name: Run converter
+        run: python server/convert.py
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add outbox
+          git add inbox
+          git commit -m "convert results" || echo "no changes"
+          git push
